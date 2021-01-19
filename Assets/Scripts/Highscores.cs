@@ -8,42 +8,34 @@ using UnityEngine.UI;
 
 public class Highscores : MonoBehaviour
 {
-    //public string username;
-    //public short trackID;
-    //public short kartSkinID;
-    //public short charSkinID;
-    //public short rank;
-    //public Time time;
-    //public Ghost ghostData;
+    private const string highscoreURL = "https://quadrilateral-veter.000webhostapp.com/getsenddata.php";
 
-    [SerializeField] InputField usernameInput;
-    [SerializeField] InputField millisecondsInput;
-    [SerializeField] Text scoreOutput;
+    [SerializeField] InputField usernameInput = null;
+    [SerializeField] InputField millisecondsInput = null;
+    [SerializeField] Text scoreOutput = null;
 
     private void Awake()
     {
-        DisplayScores();
+        DisplayScores("0");
     }
 
-    public void SendScores()
+    public void SendScores(string trackID)
     {
-        StartCoroutine(DoPostScores(usernameInput.text, int.Parse(millisecondsInput.text)));
+        StartCoroutine(DoPostScores(trackID, usernameInput.text, int.Parse(millisecondsInput.text)));
     }
 
-    public void DisplayScores()
+    public void DisplayScores(string trackID)
     {
-        StartCoroutine(DoDisplayScores());
+        StartCoroutine(DoDisplayScores(trackID));
     }
 
-    private const string highscoreURL = "https://quadrilateral-veter.000webhostapp.com/getsenddata.php";
-
-    IEnumerator DoDisplayScores()
+    IEnumerator DoDisplayScores(string trackID)
     {
         scoreOutput.text = "";
 
         List<Score> scores = new List<Score>();
 
-        yield return StartCoroutine(DoRetrieveScores(scores));
+        yield return StartCoroutine(DoRetrieveScores(trackID, scores));
 
         foreach (Score score in scores)
         {
@@ -52,10 +44,10 @@ public class Highscores : MonoBehaviour
         }
     }
 
-    IEnumerator DoRetrieveScores(List<Score> scores)
+    IEnumerator DoRetrieveScores(string trackID, List<Score> scores)
     {
         WWWForm form = new WWWForm();
-        form.AddField("retrieve_leaderboard", "true");
+        form.AddField("retrieve_leaderboard_" + trackID, "true");
 
         using (UnityWebRequest www = UnityWebRequest.Post(highscoreURL, form))
         {
@@ -69,6 +61,8 @@ public class Highscores : MonoBehaviour
             {
                 Debug.Log("Successfully retrieved scores!");
                 string contents = www.downloadHandler.text;
+                Debug.Log(contents);
+
                 using (StringReader reader = new StringReader(contents))
                 {
                     string line;
@@ -76,6 +70,11 @@ public class Highscores : MonoBehaviour
                     {
                         Score entry = new Score();
                         entry.name = line;
+
+                        // skip IDs
+                        reader.ReadLine();
+                        reader.ReadLine();
+
                         try
                         {
                             entry.score = Int32.Parse(reader.ReadLine());
@@ -93,11 +92,13 @@ public class Highscores : MonoBehaviour
         }
     }
 
-    IEnumerator DoPostScores(string name, int score)
+    IEnumerator DoPostScores(string trackID, string name, int score)
     {
         WWWForm form = new WWWForm();
-        form.AddField("post_leaderboard", "true");
+        form.AddField("post_leaderboard_" + trackID, "true");
         form.AddField("username", name);
+        form.AddField("kartSkinID", 0);
+        form.AddField("charSkinID", 0);
         form.AddField("time", score);
 
         using (UnityWebRequest www = UnityWebRequest.Post(highscoreURL, form))
@@ -111,6 +112,10 @@ public class Highscores : MonoBehaviour
             else
             {
                 Debug.Log("Successfully posted score!");
+
+                //debug stuff
+                //string contents = www.downloadHandler.text;
+                //Debug.Log(contents);
             }
         }
     }
